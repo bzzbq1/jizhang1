@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>我的高级记账本</title>
+    <style>
+        :root {
+            --bg-color: #F2F2F7;
+            --card-bg: #FFFFFF;
+            --text-primary: #1C1C1E;
+            --text-secondary: #8E8E93;
+            --blue: #007AFF;
+            --green: #34C759;
+            --red: #FF3B30;
+            --border: #E5E5EA;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            padding-bottom: 90px;
+            padding-top: env(safe-area-inset-top);
+        }
+
+        /* --- 顶部总览卡片 --- */
+        .summary-wrapper {
+            padding: 15px;
+        }
+        .summary-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            text-align: center;
+        }
+        .balance-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .balance-number {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: -1.5px;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+        .balance-number::before {
+            content: '¥';
+            font-size: 24px;
+            margin-right: 2px;
+        }
+        .summary-stats {
+            display: flex;
+            justify-content: space-around;
+            border-top: 1px solid var(--border);
+            padding-top: 15px;
+        }
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .stat-value.income { color: var(--green); }
+        .stat-value.expense { color: var(--red); }
+
+        /* --- 月份分组列表 --- */
+        .month-list {
+            padding: 0 15px;
+        }
+        .month-group {
+            background: var(--card-bg);
+            border-radius: 16px;
+            margin-bottom: 15px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+        .month-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .month-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .month-summary {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .month-summary span {
+            margin-left: 10px;
+        }
+        .month-summary .m-in { color: var(--green); }
+        .month-summary .m-ex { color: var(--red); }
+
+        .record-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            background: var(--card-bg);
+            transition: background 0.2s;
+            animation: slideDown 0.3s ease-out forwards;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .record-item:active {
+            background: #F9F9FB;
+        }
+        
+        .category-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: #F2F2F7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        
+        .record-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow: hidden;
+        }
+        .record-title {
+            font-size: 16px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .record-date {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .record-amount {
+            font-size: 18px;
+            font-weight: 600;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        .record-amount.expense { color: var(--text-primary); }
+        .record-amount.income { color: var(--green); }
+
+        /* --- 悬浮添加按钮 --- */
+        .fab-add {
+            position: fixed;
+            bottom: calc(30px + env(safe-area-inset-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0 30px;
+            height: 54px;
+            background: var(--blue);
+            color: white;
+            border-radius: 27px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 600;
+            box-shadow: 0 6px 20px rgba(0, 122, 255, 0.35);
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s;
+        }
+        .fab-add:active {
+            transform: translateX(-50%) scale(0.95);
+        }
+
+        /* --- 弹窗 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .modal-overlay.show {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            background: var(--bg-color);
+            width: 100%;
+            max-width: 500px;
+            border-radius: 24px 24px 0 0;
+            padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+        }
+        .modal-overlay.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .type-toggle {
+            display: flex;
+            background: #E5E5EA;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+        .type-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .type-btn.active {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .type-btn.active.expense { color: var(--red); }
+        .type-btn.active.income { color: var(--green); }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .input-group span {
+            font-size: 22px;
+            color: var(--text-secondary);
+            margin-right: 8px;
+        }
+        .input-group input {
+            border: none;
+            outline: none;
+            font-size: 28px;
+            font-weight: 700;
+            width: 100%;
+            background: transparent;
+            color: var(--text-primary);
+        }
+
+        .date-input {
+            background: var(--card-bg);
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 16px;
+            width: 100%;
+            outline: none;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .cat-item {
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 12px 5px;
+            text-align: center;
+            font-size: 22px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .cat-item.active {
+            border-color: var(--blue);
+            background: #E5F1FF;
+            transform: scale(1.05);
+        }
+        .cat-item .cat-name {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .note-input {
+            width: 100%;
+            background: var(--card-bg);
+            border: none;
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .save-btn {
+            width: 100%;
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 18px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .save-btn:active { opacity: 0.8; }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+        .empty-state .icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        
+        /* 隐藏数字输入框的上下箭头 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部总览 -->
+    <div class="summary-wrapper">
+        <div class="summary-card">
+            <div class="balance-label">当前总结余</div>
+            <div class="balance-number" id="total-balance">0.00</div>
+            <div class="summary-stats">
+                <div class="stat-item">
+                    <span class="stat-label">总收入</span>
+                    <span class="stat-value income" id="total-income">0.00</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">总支出</span>
+                    <span class="stat-value expense" id="total-expense">0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 月份分组列表 -->
+    <div class="month-list" id="month-list">
+        <!-- 动态渲染 -->
+    </div>
+    
+    <!-- 空状态 -->
+    <div class="empty-state" id="empty-state" style="display: none;">
+        <div class="icon">📝</div>
+        <div>还没有记账记录哦，点击下方按钮记一笔吧</div>
+    </div>
+
+    <!-- 悬浮按钮 -->
+    <div class="fab-add" onclick="openModal()">+ 记一笔</div>
+
+    <!-- 记账弹窗 -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            
+            <div class="type-toggle">
+                <div class="type-btn active expense" id="btn-expense" onclick="setType('expense')">支出</div>
+                <div class="type-btn" id="btn-income" onclick="setType('income')">收入</div>
+            </div>
+
+            <div class="input-group">
+                <span>¥</span>
+                <input type="number" inputmode="decimal" id="amount-input" placeholder="0.00" step="0.01">
+            </div>
+
+            <!-- 允许选择日期 -->
+            <input type="date" class="date-input" id="date-input">
+
+            <div class="category-grid" id="category-grid"></div>
+
+            <input type="text" class="note-input" id="note-input" placeholder="添加备注（可选）">
+
+            <button class="save-btn" onclick="saveRecord()">保存记录</button>
+        </div>
+    </div>
+
+    <script>
+        const CATEGORIES = {
+            expense: [
+                { id: 'food', icon: '🍔', name: '餐饮' },
+                { id: 'transport', icon: '🚗', name: '交通' },
+                { id: 'shopping', icon: '🛍️', name: '购物' },
+                { id: 'home', icon: '🏠', name: '居住' },
+                { id: 'fun', icon: '🎮', name: '娱乐' },
+                { id: 'medical', icon: '💊', name: '医疗' },
+                { id: 'study', icon: '📚', name: '学习' },
+                { id: 'other', icon: '📦', name: '其他' }
+            ],
+            income: [
+                { id: 'salary', icon: '💰', name: '工资' },
+                { id: 'bonus', icon: '🧧', name: '奖金' },
+                { id: 'invest', icon: '📈', name: '理财' },
+                { id: 'parttime', icon: '💼', name: '兼职' },
+                { id: 'other_income', icon: '🎁', name: '其他' }
+            ]
+        };
+
+        let records = JSON.parse(localStorage.getItem('my_advanced_bookkeeping')) || [];
+        let currentType = 'expense';
+        let selectedCategory = CATEGORIES.expense[0].id;
+        let openMonths = {}; // 记录哪些月份是展开的
+
+        // 初始化
+        function init() {
+            // 默认展开最近的3个月
+            const now = new Date();
+            for(let i=0; i<3; i++) {
+                let d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                let key = getMonthKey(d.toISOString().split('T')[0]);
+                openMonths[key] = true;
+            }
+            render();
+        }
+
+        // 获取月份键 格式 YYYY-MM
+        function getMonthKey(dateStr) {
+            return dateStr.substring(0, 7);
+        }
+
+        // 格式化日期显示
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            const month = (d.getMonth() + 1).toString().padStart(2, '0');
+            const day = d.getDate().toString().padStart(2, '0');
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+            return `${month}月${day}日 星期${weekDays[d.getDay()]}`;
+        }
+
+        // 切换类型
+        function setType(type) {
+            currentType = type;
+            document.getElementById('btn-expense').className = `type-btn ${type === 'expense' ? 'active expense' : ''}`;
+            document.getElementById('btn-income').className = `type-btn ${type === 'income' ? 'active income' : ''}`;
+            renderCategories();
+            selectedCategory = CATEGORIES[type][0].id;
+        }
+
+        // 渲染分类
+        function renderCategories() {
+            const grid = document.getElementById('category-grid');
+            grid.innerHTML = CATEGORIES[currentType].map(cat => `
+                <div class="cat-item ${cat.id === selectedCategory ? 'active' : ''}" onclick="selectCategory('${cat.id}')">
+                    <div>${cat.icon}</div>
+                    <div class="cat-name">${cat.name}</div>
+                </div>
+            `).join('');
+        }
+
+        function selectCategory(id) {
+            selectedCategory = id;
+            renderCategories();
+        }
+
+        // 打开弹窗
+        function openModal() {
+            document.getElementById('amount-input').value = '';
+            document.getElementById('note-input').value = '';
+            // 默认今天的日期
+            document.getElementById('date-input').value = new Date().toISOString().split('T')[0];
+            selectedCategory = CATEGORIES[currentType][0].id;
+            renderCategories();
+            document.getElementById('modal-overlay').classList.add('show');
+            setTimeout(() => document.getElementById('amount-input').focus(), 300);
+        }
+
+        // 关闭弹窗
+        function closeModal(e) {
+            if (e && e.target !== document.getElementById('modal-overlay')) return;
+            document.getElementById('modal-overlay').classList.remove('show');
+        }
+
+        // 保存记录
+        function saveRecord() {
+            const amountInput = document.getElementById('amount-input');
+            const noteInput = document.getElementById('note-input');
+            const dateInput = document.getElementById('date-input');
+            
+            const amount = parseFloat(amountInput.value);
+            const dateVal = dateInput.value;
+
+            if (isNaN(amount) || amount <= 0) {
+                alert('请输入有效的金额！');
+                amountInput.focus();
+                return;
+            }
+
+            if (!dateVal) {
+                alert('请选择日期！');
+                return;
+            }
+
+            const record = {
+                id: Date.now(),
+                type: currentType,
+                amount: amount,
+                category: selectedCategory,
+                note: noteInput.value.trim(),
+                date: dateVal
+            };
+
+            records.push(record);
+            // 按日期倒序排列
+            records.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            localStorage.setItem('my_advanced_bookkeeping', JSON.stringify(records));
+            
+            // 自动展开被添加的月份
+            openMonths[getMonthKey(dateVal)] = true;
+
+            closeModal();
+            render();
+        }
+
+        // 删除记录
+        function deleteRecord(id, event) {
+            event.stopPropagation(); // 阻止冒泡触发折叠
+            if (confirm('确定要删除这条记录吗？')) {
+                records = records.filter(r => r.id !== id);
+                localStorage.setItem('my_advanced_bookkeeping', JSON.stringify(records));
+                render();
+            }
+        }
+
+        // 切换月份展开/折叠
+        function toggleMonth(key) {
+            openMonths[key] = !openMonths[key];
+            render();
+        }
+
+        // 渲染全部
+        function render() {
+            // 1. 计算全局数据
+            let totalIncome = 0, totalExpense = 0;
+            records.forEach(r => {
+                if (r.type === 'income') totalIncome += r.amount;
+                else totalExpense += r.amount;
+            });
+            document.getElementById('total-balance').innerText = (totalIncome - totalExpense).toFixed(2);
+            document.getElementById('total-income').innerText = totalIncome.toFixed(2);
+            document.getElementById('total-expense').innerText = totalExpense.toFixed(2);
+
+            // 2. 按月份分组
+            const groups = {};
+            records.forEach(r => {
+                const key = getMonthKey(r.date);
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(r);
+            });
+
+            const sortedMonths = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+            const listContainer = document.getElementById('month-list');
+            const emptyState = document.getElementById('empty-state');
+
+            if (sortedMonths.length === 0) {
+                listContainer.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            emptyState.style.display = 'none';
+
+            // 3. 构建 HTML
+            let html = '';
+            sortedMonths.forEach(monthKey => {
+                const [year, month] = monthKey.split('-');
+                const monthTitle = `${year}年${parseInt(month)}月`;
+                const monthRecords = groups[monthKey];
+                
+                // 计算当月小计
+                let mIncome = 0, mExpense = 0;
+                monthRecords.forEach(r => {
+                    if (r.type === 'income') mIncome += r.amount;
+                    else mExpense += r.amount;
+                });
+
+                const isOpen = openMonths[monthKey];
+
+                html += `
+                    <div class="month-group">
+                        <div class="month-header" onclick="toggleMonth('${monthKey}')">
+                            <div class="month-title">${monthTitle}</div>
+                            <div class="month-summary">
+                                <span class="m-ex">支 ${mExpense.toFixed(2)}</span>
+                                <span class="m-in">收 ${mIncome.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div style="display: ${isOpen ? 'block' : 'none'};" class="month-content">
+                `;
+
+                if (isOpen) {
+                    monthRecords.forEach(r => {
+                        const cat = CATEGORIES[r.type].find(c => c.id === r.category) || { icon: '📦', name: '其他' };
+                        const sign = r.type === 'expense' ? '-' : '+';
+                        const amountClass = r.type === 'expense' ? 'expense' : 'income';
+                        
+                        html += `
+                            <div class="record-item" onclick="deleteRecord(${r.id}, event)">
+                                <div class="category-icon">${cat.icon}</div>
+                                <div class="record-info">
+                                    <div class="record-title">${cat.name} ${r.note ? '· ' + r.note : ''}</div>
+                                    <div class="record-date">${formatDate(r.date)}</div>
+                                </div>
+                                <div class="record-amount ${amountClass}">${sign}${r.amount.toFixed(2)}</div>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            listContainer.innerHTML = html;
+        }
+
+        // 页面加载完成初始化
+        window.onload = init;
+    </script>
+</body>
+</html>
